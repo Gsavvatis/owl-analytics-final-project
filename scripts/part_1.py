@@ -1,6 +1,6 @@
 import csv
 from pathlib import Path
-
+from concurrent.futures import ThreadPoolExecutor
 import requests
 import time
 
@@ -19,7 +19,7 @@ symbols = ["BTCUSDT",
            "DOTUSDT"
         ]
 
-
+NUM_SYMBOLS = len(symbols)
 
 def fetch_data(symbol):
     params = {
@@ -62,10 +62,29 @@ def download_data_serial(symbols):
 
    
     end = time.perf_counter()
-    print(f"Execution time: {end - start:.2f} seconds")
+   # print(f"Execution time: {end - start:.2f} seconds")
     return rows, end - start
 
 rows, Serial_time = download_data_serial(symbols)
+
+
+
+def download_data_multithreaded(symbols): 
+    
+    start = time.perf_counter()
+    rows = []
+    with ThreadPoolExecutor(max_workers=NUM_SYMBOLS) as executor:
+        results = executor.map(fetch_data, symbols)
+        for result in results:
+            rows.extend(result)
+
+    end = time.perf_counter()
+   # print(f"Execution time: {end - start:.2f} seconds")
+    return rows, end - start
+
+rows, Multithreaded_time = download_data_multithreaded(symbols)
+
+
 
 output_path = Path("data/clean/records.csv")
 output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -75,5 +94,9 @@ with output_path.open("w", newline="", encoding="utf-8") as file:
     writer.writeheader()
     writer.writerows(rows)
 
-print(f"Saved {output_path}")
+
 print(f"Serial execution time: {Serial_time:.2f} seconds")
+print(f"Serial records: {len(rows)}")
+print(f"Multithreaded records: {len(rows)}")
+print(f"Multithreaded execution time: {Multithreaded_time:.2f} seconds")
+print(f"Saved {output_path}")
