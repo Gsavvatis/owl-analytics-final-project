@@ -18,44 +18,51 @@ symbols = ["BTCUSDT",
            "LINKUSDT",
            "DOTUSDT"
         ]
-def download_data_serial(symbols):
+
+
+
+def fetch_data(symbol):
+    params = {
+        "symbol": symbol,
+        "interval": "1h",
+        "limit": 1000,
+    }
+
+    response = requests.get(url, params=params, timeout=30)
+    response.raise_for_status()
+
+    records = response.json()
+    
     rows = []
-
-    start = time.perf_counter()
-
-    for symbol in symbols:
-        params = {
+    for record in records:   
+        row = {
             "symbol": symbol,
             "interval": "1h",
-            "limit": 1000,
+            "open_time": record[0],
+            "open": record[1],
+            "high": record[2],
+            "low": record[3],
+            "close": record[4],
+            "volume": record[5],
+            "close_time": record[6],
+            "quote_volume": record[7],
+            "trade_count": record[8],
+            "taker_buy_base_volume": record[9],
+            "taker_buy_quote_volume": record[10]
         }
+        rows.append(row)
 
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
+    return rows
 
-        records = response.json()
-        
-        
-        for record in records:   
-            row = {
-                "symbol": symbol,
-                "interval": "1h",
-                "open_time": record[0],
-                "open": record[1],
-                "high": record[2],
-                "low": record[3],
-                "close": record[4],
-                "volume": record[5],
-                "close_time": record[6],
-                "quote_volume": record[7],
-                "trade_count": record[8],
-                "taker_buy_base_volume": record[9],
-                "taker_buy_quote_volume": record[10]
-            }
-            rows.append(row)
+def download_data_serial(symbols):
+    start = time.perf_counter()
+    rows = []
+    for symbol in symbols:
+        rows.extend(fetch_data(symbol))
 
+   
     end = time.perf_counter()
-
+    print(f"Execution time: {end - start:.2f} seconds")
     return rows, end - start
 
 rows, Serial_time = download_data_serial(symbols)
