@@ -1,9 +1,10 @@
 import csv
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+import threading
 import requests
 import time
-
+from datetime import datetime, timezone
 
 url = "https://data-api.binance.vision/api/v3/klines"
 
@@ -20,6 +21,11 @@ symbols = ["BTCUSDT",
         ]
 
 NUM_SYMBOLS = len(symbols)
+
+
+def convert_ms_to_timestamp(ms):
+    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S+00:00')
+
 
 def fetch_data(symbol):
     params = {
@@ -38,13 +44,13 @@ def fetch_data(symbol):
         row = {
             "symbol": symbol,
             "interval": "1h",
-            "open_time": record[0],
+            "open_time": convert_ms_to_timestamp(record[0]),
             "open": record[1],
             "high": record[2],
             "low": record[3],
             "close": record[4],
             "volume": record[5],
-            "close_time": record[6],
+            "close_time": convert_ms_to_timestamp(record[6])   ,
             "quote_volume": record[7],
             "trade_count": record[8],
             "taker_buy_base_volume": record[9],
@@ -93,6 +99,9 @@ with output_path.open("w", newline="", encoding="utf-8") as file:
     writer = csv.DictWriter(file, fieldnames=rows[0].keys())
     writer.writeheader()
     writer.writerows(rows)
+
+
+
 
 
 print(f"Serial execution time: {Serial_time:.2f} seconds")
