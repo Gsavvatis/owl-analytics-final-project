@@ -2,22 +2,26 @@ import csv
 from pathlib import Path
 
 import requests
+import time
 
 
 url = "https://data-api.binance.vision/api/v3/klines"
 
 symbols = ["BTCUSDT",
-            "ETHUSDT",
-            "BNBUSDT",
-            "SOLUSDT",
-            "XRPUSDT",
-            "ADAUSDT",
-            "DOGEUSDT",
-            "AVAXUSDT",
-            "LINKUSDT",
-            "DOTUSDT"
-            ]
+           "ETHUSDT",
+           "BNBUSDT",
+           "SOLUSDT",
+           "XRPUSDT",
+           "ADAUSDT",
+           "DOGEUSDT",
+           "AVAXUSDT",
+           "LINKUSDT",
+           "DOTUSDT"
+        ]
+
 rows = []
+
+start = time.perf_counter()
 for symbol in symbols:
     params = {
         "symbol": symbol,
@@ -29,6 +33,7 @@ for symbol in symbols:
     response.raise_for_status()
 
     records = response.json()
+    
     
     for record in records:   
         row = {
@@ -43,8 +48,13 @@ for symbol in symbols:
             "close_time": record[6],
             "quote_volume": record[7],
             "trade_count": record[8],
+            "taker_buy_base_volume": record[9],
+            "taker_buy_quote_volume": record[10]
         }
         rows.append(row)
+
+end = time.perf_counter()
+print(f"Execution time: {end - start:.2f} seconds")
 
 output_path = Path("data/clean/records.csv")
 output_path.parent.mkdir(parents=True, exist_ok=True)
