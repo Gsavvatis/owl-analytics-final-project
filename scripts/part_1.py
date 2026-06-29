@@ -21,13 +21,23 @@ symbols = ["BTCUSDT",
         ]
 
 NUM_SYMBOLS = len(symbols)
+log_lock = threading.Lock()
 
+Path("results").mkdir(exist_ok=True)
+Path("data/clean").mkdir(parents=True, exist_ok=True)
 
 def convert_ms_to_timestamp(ms):
     return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S+00:00')
 
 
+def write_log(message):
+    timestamp = datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    with log_lock:
+        with open("results/api_download.log", "a", encoding="utf-8") as file:
+            file.write(f"{timestamp} | {message}\n")
+
 def fetch_data(symbol):
+    write_log(f"START request for symbol = {symbol} interval = 1h")
     params = {
         "symbol": symbol,
         "interval": "1h",
@@ -57,7 +67,7 @@ def fetch_data(symbol):
             "taker_buy_quote_volume": record[10]
         }
         rows.append(row)
-
+    write_log(f"END request for symbol = {symbol} records = {len(rows)}")
     return rows
 
 def download_data_serial(symbols):
@@ -71,7 +81,7 @@ def download_data_serial(symbols):
    # print(f"Execution time: {end - start:.2f} seconds")
     return rows, end - start
 
-rows, Serial_time = download_data_serial(symbols)
+serial_rows, serial_time = download_data_serial(symbols)
 
 
 
@@ -88,7 +98,7 @@ def download_data_multithreaded(symbols):
    # print(f"Execution time: {end - start:.2f} seconds")
     return rows, end - start
 
-rows, Multithreaded_time = download_data_multithreaded(symbols)
+mt_rows, multithreaded_time = download_data_multithreaded(symbols)
 
 
 
@@ -96,16 +106,24 @@ output_path = Path("data/clean/records.csv")
 output_path.parent.mkdir(parents=True, exist_ok=True)
 
 with output_path.open("w", newline="", encoding="utf-8") as file:
-    writer = csv.DictWriter(file, fieldnames=rows[0].keys())
+    writer = csv.DictWriter(file, fieldnames=mt_rows[0].keys())
     writer.writeheader()
-    writer.writerows(rows)
+    writer.writerows(mt_rows)
 
 
 
 
 
-print(f"Serial execution time: {Serial_time:.2f} seconds")
-print(f"Serial records: {len(rows)}")
-print(f"Multithreaded records: {len(rows)}")
-print(f"Multithreaded execution time: {Multithreaded_time:.2f} seconds")
+
+
+write_log(f"Serial execution time: {serial_time:.2f} seconds")
+write_log(f"Serial records: {len(serial_rows)}")
+write_log(f"Multithreaded records: {len(mt_rows)}")
+write_log(f"Multithreaded execution time: {multithreaded_time:.2f} seconds")
+write_log(f"Saved {output_path}")
+
+print(f"Serial execution time: {serial_time:.2f} seconds")
+print(f"Serial records: {len(serial_rows)}")
+print(f"Multithreaded records: {len(mt_rows)}")
+print(f"Multithreaded execution time: {multithreaded_time:.2f} seconds")
 print(f"Saved {output_path}")
