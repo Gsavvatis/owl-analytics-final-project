@@ -22,6 +22,7 @@ symbols = ["BTCUSDT",
 
 NUM_SYMBOLS = len(symbols)
 log_lock = threading.Lock()
+rate_limiter = threading.Semaphore(100)
 
 Path("results").mkdir(exist_ok=True)
 Path("data/clean").mkdir(parents=True, exist_ok=True)
@@ -36,39 +37,46 @@ def write_log(message):
         with open("results/api_download.log", "a", encoding="utf-8") as file:
             file.write(f"{timestamp} | {message}\n")
 
+def save_benchmark(serial_time, multithreaded_time):
+    with open("results/benchmark.csv", "w", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow([datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), serial_time, multithreaded_time])
+
 def fetch_data(symbol):
-    write_log(f"START request for symbol = {symbol} interval = 1h")
-    params = {
-        "symbol": symbol,
-        "interval": "1h",
-        "limit": 1000,
-    }
-
-    response = requests.get(url, params=params, timeout=30)
-    response.raise_for_status()
-
-    records = response.json()
+    with rate_limiter:
     
-    rows = []
-    for record in records:   
-        row = {
+        write_log(f"START request for symbol = {symbol} interval = 1h")
+        params = {
             "symbol": symbol,
             "interval": "1h",
-            "open_time": convert_ms_to_timestamp(record[0]),
-            "open": record[1],
-            "high": record[2],
-            "low": record[3],
-            "close": record[4],
-            "volume": record[5],
-            "close_time": convert_ms_to_timestamp(record[6])   ,
-            "quote_volume": record[7],
-            "trade_count": record[8],
-            "taker_buy_base_volume": record[9],
-            "taker_buy_quote_volume": record[10]
+            "limit": 1000,
         }
-        rows.append(row)
-    write_log(f"END request for symbol = {symbol} records = {len(rows)}")
-    return rows
+
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+
+        records = response.json()
+        
+        rows = []
+        for record in records:   
+            row = {
+                "symbol": symbol,
+                "interval": "1h",
+                "open_time": convert_ms_to_timestamp(record[0]),
+                "open": record[1],
+                "high": record[2],
+                "low": record[3],
+                "close": record[4],
+                "volume": record[5],
+                "close_time": convert_ms_to_timestamp(record[6])   ,
+                "quote_volume": record[7],
+                "trade_count": record[8],
+                "taker_buy_base_volume": record[9],
+                "taker_buy_quote_volume": record[10]
+            }
+            rows.append(row)
+        write_log(f"END request for symbol = {symbol} records = {len(rows)}")
+        return rows
 
 def download_data_serial(symbols):
     start = time.perf_counter()
